@@ -1,2 +1,5 @@
 # old files
 bot.ts
+
+# env files
+.env.*

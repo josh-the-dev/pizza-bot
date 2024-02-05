@@ -1,11 +1,16 @@
 import twitchio
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class MyBot(twitchio.Client):
-    def __init__(self, username, token, channel):
-        super().__init__(username=username,
-                         token=token, initial_channels=[channel])
-        self.queue = []
+    def __init__(self, token, channel):
+        super().__init__(token=token, initial_channels=[channel])
+        self.channel = channel
+        self.raffle_queue = []
+        self.arena_queue = []
 
     async def event_message(self, message):
         # Check if the message is a command
@@ -24,9 +29,8 @@ class MyBot(twitchio.Client):
 
 
 # Replace these with your bot's credentials
-bot_username = 'your_bot_username'
-bot_token = 'your_bot_oauth_token'
-channel_name = 'your_channel_name'
+bot_token = os.getenv('TWITCH_BOT_TOKEN')
+channel_name = os.getenv('TWITCH_CHANNEL_NAME')
 
-bot = MyBot(bot_username, bot_token, channel_name)
+bot = MyBot(bot_token, channel_name)
 bot.run()
