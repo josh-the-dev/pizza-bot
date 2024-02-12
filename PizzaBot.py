@@ -1,4 +1,5 @@
 import os
+import random
 from twitchio.ext import commands
 from dotenv import load_dotenv
 
@@ -48,7 +49,7 @@ class Bot(commands.Bot):
         elif not is_privileged_user:
             await ctx.send(f'Sorry you cannot do that!')
         else:
-            await ctx.send(f'The arena is already open!')
+            await ctx.send(f'The raffle is already open!')
 
     @commands.command()
     async def close(self, ctx: commands.Context):
@@ -60,7 +61,7 @@ class Bot(commands.Bot):
         elif not is_privileged_user:
             await ctx.send(f'Sorry you cannot do that!')
         else:
-            await ctx.send(f'The arena is already closed!')
+            await ctx.send(f'The raffle is already closed!')
 
     @commands.command()
     async def join(self, ctx: commands.Context):
@@ -71,11 +72,26 @@ class Bot(commands.Bot):
             return
 
         elif user in self.raffle_queue:
-            await ctx.send(f'{ctx.author.name} is already in the queue')
+            await ctx.send(f'{ctx.author.name} is already in the raffle')
             return
 
         self.raffle_queue.append(user)
-        await ctx.send(f'{ctx.author.name} is added to the queue!')
+        await ctx.send(f'{ctx.author.name} is added to the raffle!')
+
+    @commands.command()
+    async def pick(self, ctx: commands.Context):
+
+        if not self.is_raffle_open:
+            await ctx.send(f'The raffle is not open!')
+            return
+        if len(self.raffle_queue) == 0:
+            await ctx.send(f'The raffle is empty!')
+            return
+
+        random_user = random.choice(self.raffle_queue)
+        self.arena_rotation.append(random_user)
+        self.raffle_queue.remove(random_user)
+        await ctx.send(f'{random_user} has been selected!')
 
 
 bot = Bot()
