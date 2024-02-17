@@ -145,7 +145,7 @@ class Bot(commands.Bot):
         await ctx.send(f'@{last_user} please join the arena!')
         self.arena_rotation.append(self.arena_rotation.pop(1))
 
-        if self.win_streak is 3:
+        if self.win_streak == 3:
             await ctx.send(f'@{winning_user} you won 3 games in a row, please leave the arena.')
             self.win_streak = 0
             self.arena_rotation.append(self.arena_rotation.pop(0))
