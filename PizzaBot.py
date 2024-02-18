@@ -138,7 +138,7 @@ class Bot(commands.Bot):
 
         winning_user = self.arena_rotation[0]
         losing_user = self.arena_rotation[1]
-        last_user = self.arena_rotation[4]
+        last_user = self.arena_rotation[len(self.arena_rotation - 1)]
         self.win_streak += 1
 
         await ctx.send(f'@{losing_user} please leave the arena!')
@@ -158,7 +158,7 @@ class Bot(commands.Bot):
             return
 
         losing_user = self.arena_rotation[0]
-        last_user = self.arena_rotation[4]
+        last_user = self.arena_rotation[len(self.arena_rotation - 1)]
         self.win_streak += 1
 
         await ctx.send(f'@{losing_user} please leave the arena!')
