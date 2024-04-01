@@ -32,11 +32,18 @@ class Bot(commands.Bot):
         # We must let the bot know we want to handle and invoke our commands...
         await self.handle_commands(message)
 
+    def check_is_channel_owner_by_message(self, message):
+        user = message.author.name.lower()
+        return user == message.channel.name.lower()
+
+    def check_is_channel_owner_by_name(self, name):
+        return user == message.channel.name.lower()
+
     def check_user_privilege(self, message):
         user = message.author.name.lower()
         is_moderator = 'moderator' in message.author._tags.get('badges', '')
         # Check if the message sender is the channel owner
-        is_channel_owner = user == message.channel.name.lower()
+        is_channel_owner = self.check_is_channel_owner(message)
         is_privileged_user = is_moderator or is_channel_owner
         return is_privileged_user
 
@@ -140,6 +147,9 @@ class Bot(commands.Bot):
         losing_user = self.arena_rotation[1]
         last_user = self.arena_rotation[len(self.arena_rotation - 1)]
         self.win_streak += 1
+
+        is_winning_user_channel_owner = self.check_is_channel_owner(
+            winning_user)
 
         await ctx.send(f'@{losing_user} please leave the arena!')
         await ctx.send(f'@{last_user} please join the arena!')
