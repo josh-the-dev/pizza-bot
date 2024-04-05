@@ -14,6 +14,7 @@ class Bot(commands.Bot):
 
         self.raffle_queue = []
         self.arena_rotation = ["itsWiiland"]
+        self.arena_entrants = ["itsWiiland"]
         self.is_raffle_open = False
         self.win_streak = 0
 
@@ -37,13 +38,13 @@ class Bot(commands.Bot):
         return user == message.channel.name.lower()
 
     def check_is_channel_owner_by_name(self, name):
-        return user == message.channel.name.lower()
+        return name == os.getenv('TWITCH_CHANNEL_NAME')
 
     def check_user_privilege(self, message):
         user = message.author.name.lower()
         is_moderator = 'moderator' in message.author._tags.get('badges', '')
         # Check if the message sender is the channel owner
-        is_channel_owner = self.check_is_channel_owner(message)
+        is_channel_owner = self.check_is_channel_owner_by_message(message)
         is_privileged_user = is_moderator or is_channel_owner
         return is_privileged_user
 
@@ -91,15 +92,24 @@ class Bot(commands.Bot):
         is_privileged_user = self.check_user_privilege(ctx.message)
         if not is_privileged_user:
             return
-        if not self.is_raffle_open:
-            await ctx.send(f'The raffle is not open!')
+        if self.is_raffle_open:
+            await ctx.send(f'The raffle is not closed yet!')
             return
         if len(self.raffle_queue) == 0:
             await ctx.send(f'The raffle is empty!')
             return
-
+        if len(self.arena_rotation) == 6:
+            await ctx.send(f'The arena is full!')
+            return
         random_user = random.choice(self.raffle_queue)
         self.arena_rotation.append(random_user)
+        
+        if len(self.arena_entrants) == 4:
+            self.raffle_queue.remove(random_user)
+            await ctx.send(f'{random_user} has been selected!')
+            return
+        
+        self.arena_entrants.append(random_user)
         self.raffle_queue.remove(random_user)
         await ctx.send(f'{random_user} has been selected!')
 
@@ -145,20 +155,64 @@ class Bot(commands.Bot):
 
         winning_user = self.arena_rotation[0]
         losing_user = self.arena_rotation[1]
-        last_user = self.arena_rotation[len(self.arena_rotation - 1)]
+       
         self.win_streak += 1
 
-        is_winning_user_channel_owner = self.check_is_channel_owner(
-            winning_user)
+        is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
+            losing_user)
+        
+        # If arena rotation is 5 people or more, invite the 5th person to the arena entrants list
+    
+        if len(self.arena_rotation) >= 5:
+            if is_losing_user_channel_owner:
+                # Move losing user to back of arena rotation
+                self.arena_rotation.append(self.arena_rotation.pop(1))
+                print(self.arena_entrants)
+            else:
+                # Check if channel owner is in position 5 or 6 in the arena rotation
+                # If so add the 4th person in the arena rotation to the arena entrants
+                # And move the channel owner to the back of the arena rotation
 
-        await ctx.send(f'@{losing_user} please leave the arena!')
-        await ctx.send(f'@{last_user} please join the arena!')
-        self.arena_rotation.append(self.arena_rotation.pop(1))
+                user_to_invite = self.arena_rotation[4] 
+                if self.check_is_channel_owner_by_name(self.arena_rotation[4]) or self.check_is_channel_owner_by_name(self.arena_rotation[5]):
+                    user_to_invite = self.arena_rotation[3]
 
-        if self.win_streak == 3:
-            await ctx.send(f'@{winning_user} you won 3 games in a row, please leave the arena.')
-            self.win_streak = 0
-            self.arena_rotation.append(self.arena_rotation.pop(0))
+                print(user_to_invite)
+                await ctx.send(f'@{losing_user} please leave the arena!')
+                await ctx.send(f'@{user_to_invite} please join the arena!')
+
+                # Remove the losing user from the arena entrants
+                self.arena_entrants.remove(losing_user)
+
+                # Add the user to the arena rotation
+                self.arena_entrants.append(user_to_invite)
+
+                # Move the losing user to the back of the arena rotation
+                self.arena_rotation.append(self.arena_rotation.pop(1))
+
+                print(self.arena_entrants)
+                print(self.arena_rotation)
+
+          
+            if self.win_streak == 3:
+                is_winning_user_channel_owner = self.check_is_channel_owner_by_name(
+                    winning_user)
+                
+                if is_winning_user_channel_owner:
+                    self.arena_rotation.append(self.arena_rotation.pop(0))
+                    await ctx.send(f'@{winning_user} has a win streak of 3! Back of the queue you go !')
+                    print(self.arena_entrants)
+                else:
+                    self.arena_entrants.remove(winning_user)
+                    user_to_invite = self.arena_rotation[4] 
+                    if self.check_is_channel_owner_by_name(self.arena_rotation[4]) or self.check_is_channel_owner_by_name(self.arena_rotation[5]):
+                        user_to_invite = self.arena_rotation[3]
+                    self.arena_rotation.append(self.arena_rotation.pop(0))
+            
+                    self.arena_entrants.append(user_to_invite)
+                    await ctx.send(f'@{winning_user} has a win streak of 3! Please leave the arena!')
+                    await ctx.send(f'@{user_to_invite} please join the arena!')
+                self.win_streak = 0
 
     @commands.command()
     async def lose(self, ctx: commands.Context):
@@ -168,17 +222,35 @@ class Bot(commands.Bot):
             return
 
         losing_user = self.arena_rotation[0]
-        last_user = self.arena_rotation[len(self.arena_rotation - 1)]
-        self.win_streak += 1
 
-        await ctx.send(f'@{losing_user} please leave the arena!')
-        await ctx.send(f'@{last_user} please join the arena!')
-        self.arena_rotation.append(self.arena_rotation.pop(0))
-        self.win_streak = 0
+        # Remove the losing user from the arena entrants
+        
+
+        if len(self.arena_rotation) >= 5:
+            is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
+                losing_user)
+            if not is_losing_user_channel_owner:
+                self.arena_entrants.remove(losing_user)
+                user_to_invite = self.arena_rotation[4]
+                self.arena_entrants.append(user_to_invite)
+                await ctx.send(f'@{user_to_invite} please join the arena!')
+                await ctx.send(f'@{losing_user} please leave the arena!')
+            else:
+                await ctx.send(f'@{losing_user} go to the back of the queue!')
+
+            self.arena_rotation.append(self.arena_rotation.pop(0))
+        self.win_streak = 1
+
+        print(self.arena_entrants)
+        print(self.arena_rotation)
 
     @commands.command()
     async def list(self, ctx: commands.Context):
         await ctx.send(f'The arena list is the following: {", ".join(self.arena_rotation)}')
+
+    @commands.command()
+    async def raffle(self, ctx: commands.Context):
+        await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
 
 
 bot = Bot()
