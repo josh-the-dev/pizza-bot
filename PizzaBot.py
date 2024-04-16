@@ -15,6 +15,7 @@ class Bot(commands.Bot):
         self.raffle_queue = []
         self.arena_queue = []
         self.arena_rotation = ["itsWiiland"]
+        self.arena_entrants = ["itsWiiland"]
         self.is_raffle_open = False
         self.win_streak = 0
 
@@ -47,12 +48,12 @@ class Bot(commands.Bot):
         is_channel_owner = self.check_is_channel_owner_by_message(message)
         is_privileged_user = is_moderator or is_channel_owner
         return is_privileged_user
-    
-    def add_to_arena(self,user):
+
+    def add_to_arena(self, user):
         if len(self.arena_rotation) == 4:
             self.arena_queue.append(user)
         else:
-             self.arena_rotation.append(user)
+            self.arena_rotation.append(user)
 
     @commands.command()
     async def open(self, ctx: commands.Context):
@@ -107,9 +108,9 @@ class Bot(commands.Bot):
         if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
-        
+
         random_user = random.choice(self.raffle_queue)
-        
+
         self.add_to_arena(random_user)
         self.raffle_queue.remove(random_user)
         await ctx.send(f'{random_user} has been selected!')
@@ -128,7 +129,7 @@ class Bot(commands.Bot):
         if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
-    
+
         self.add_to_arena(user_to_add)
         await ctx.send(f'{user_to_add} added to the arena!')
 
@@ -164,12 +165,12 @@ class Bot(commands.Bot):
 
         winning_user = self.arena_rotation[0]
         losing_user = self.arena_rotation[1]
-       
+
         self.win_streak += 1
 
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
-        
+
         # If there are any people in the arena queue, we need to move them to the arena rotation
         # And the loser moves to the arena queue and removed from the arena rotation
         # If the loser is the channel owner, they move to the back of the arena rotation
@@ -177,7 +178,7 @@ class Bot(commands.Bot):
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(1))
             print(self.arena_rotation)
-        
+
         else:
             if len(self.arena_queue) > 0:
                 user_to_invite = self.arena_queue.pop(0)
@@ -192,8 +193,8 @@ class Bot(commands.Bot):
 
         if self.win_streak == 3:
             is_winning_user_channel_owner = self.check_is_channel_owner_by_name(
-                    winning_user)
-            
+                winning_user)
+
             if is_winning_user_channel_owner:
                 self.arena_rotation.append(self.arena_rotation.pop(0))
                 await ctx.send(f'@{winning_user} has a win streak of 3! Back of the queue you go !')
@@ -222,10 +223,10 @@ class Bot(commands.Bot):
         losing_user = self.arena_rotation[0]
 
         # Remove the losing user from the arena entrants
-    
+
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
-                losing_user)
-        
+            losing_user)
+
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(0))
             await ctx.send(f'@{losing_user} go to the back of the queue!')
@@ -241,15 +242,17 @@ class Bot(commands.Bot):
             else:
                 self.arena_rotation.append(self.arena_rotation.pop(0))
                 print(self.arena_rotation)
-        
 
         self.win_streak = 1
-
 
     @commands.command()
     async def list(self, ctx: commands.Context):
         await ctx.send(f'The arena list is the following: {", ".join(self.arena_rotation)}')
         await ctx.send(f'The people outside the arena are: {", ".join(self.arena_queue)}')
+
+    @commands.command()
+    async def raffle(self, ctx: commands.Context):
+        await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
 
     @commands.command()
     async def raffle(self, ctx: commands.Context):
