@@ -243,7 +243,7 @@ class Bot(commands.Bot):
                 self.arena_rotation.append(self.arena_rotation.pop(0))
                 print(self.arena_rotation)
 
-        self.win_streak = 0
+        self.win_streak = 1
 
     @commands.command()
     async def list(self, ctx: commands.Context):
