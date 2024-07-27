@@ -95,6 +95,14 @@ class Bot(commands.Bot):
         await ctx.send(f'{ctx.author.name} is added to the raffle!')
 
     @commands.command()
+    async def status(self, ctx: commands.Context):
+        user = ctx.author.name
+        if self.is_raffle_open:
+            await ctx.send(f'The raffle is open {user}!')
+        else:
+            await ctx.send(f'The raffle is not open {user}!')
+
+    @commands.command()
     async def pick(self, ctx: commands.Context):
         is_privileged_user = self.check_user_privilege(ctx.message)
         if not is_privileged_user:
