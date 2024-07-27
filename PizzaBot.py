@@ -119,7 +119,7 @@ class Bot(commands.Bot):
         if len(self.raffle_queue) == 0:
             await ctx.send(f'The raffle is empty!')
             return
-        if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
+        if len(self.arena_rotation) == 4 and len(self.arena_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
 
@@ -140,7 +140,7 @@ class Bot(commands.Bot):
         if user_to_add in self.arena_rotation or user_to_add in self.arena_queue:
             await ctx.send(f'{user_to_add} is already in the arena!')
             return
-        if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
+        if len(self.arena_rotation) == 4 and len(self.arena_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
 
