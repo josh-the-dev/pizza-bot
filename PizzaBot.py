@@ -211,7 +211,7 @@ class Bot(commands.Bot):
                     self.arena_rotation.append(self.arena_rotation.pop(0))
                     print(self.arena_rotation)
 
-            self.win_streak = 1
+            self.win_streak = 0
 
     @commands.command()
     async def lose(self, ctx: commands.Context):
