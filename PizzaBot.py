@@ -18,6 +18,7 @@ class Bot(commands.Bot):
         self.arena_entrants = ["itsWiiland"]
         self.is_raffle_open = False
         self.win_streak = 0
+        self.scoreboard = {"itsWiiland": 0}
 
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
@@ -54,6 +55,11 @@ class Bot(commands.Bot):
             self.arena_queue.append(user)
         else:
             self.arena_rotation.append(user)
+            self.add_to_scoreboard(user)
+
+    def add_to_scoreboard(self, user):
+        if user not in self.scoreboard:
+            self.scoreboard[user] = 0
 
     @commands.command()
     async def open(self, ctx: commands.Context):
@@ -95,6 +101,14 @@ class Bot(commands.Bot):
         await ctx.send(f'{ctx.author.name} is added to the raffle!')
 
     @commands.command()
+    async def status(self, ctx: commands.Context):
+        user = ctx.author.name
+        if self.is_raffle_open:
+            await ctx.send(f'The raffle is open {user}!')
+        else:
+            await ctx.send(f'The raffle is not open {user}!')
+
+    @commands.command()
     async def pick(self, ctx: commands.Context):
         is_privileged_user = self.check_user_privilege(ctx.message)
         if not is_privileged_user:
@@ -105,7 +119,7 @@ class Bot(commands.Bot):
         if len(self.raffle_queue) == 0:
             await ctx.send(f'The raffle is empty!')
             return
-        if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
+        if len(self.arena_rotation) == 4 and len(self.arena_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
 
@@ -126,7 +140,7 @@ class Bot(commands.Bot):
         if user_to_add in self.arena_rotation or user_to_add in self.arena_queue:
             await ctx.send(f'{user_to_add} is already in the arena!')
             return
-        if len(self.arena_rotation) == 4 and len(self.raffle_queue) == 2:
+        if len(self.arena_rotation) == 4 and len(self.arena_queue) == 2:
             await ctx.send(f'The arena is full!')
             return
 
@@ -152,7 +166,9 @@ class Bot(commands.Bot):
             # in arena rotation, so we have to bump people up.
             self.arena_rotation.remove(user_to_remove)
             if len(self.arena_queue) > 0:
-                self.arena_rotation.append(self.arena_queue.pop(0))
+                user_to_invite = self.arena_queue.pop(0)
+                self.arena_rotation.append(user_to_invite)
+                self.add_to_scoreboard(user_to_invite)
 
         await ctx.send(f'{user_to_remove} removed from the arena!')
 
@@ -167,6 +183,7 @@ class Bot(commands.Bot):
         losing_user = self.arena_rotation[1]
 
         self.win_streak += 1
+        self.scoreboard[winning_user] += 1
 
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
@@ -184,6 +201,7 @@ class Bot(commands.Bot):
                 user_to_invite = self.arena_queue.pop(0)
                 self.arena_rotation.remove(losing_user)
                 self.arena_rotation.append(user_to_invite)
+                self.add_to_scoreboard(user_to_invite)
                 await ctx.send(f'@{user_to_invite} please join the arena!')
                 await ctx.send(f'@{losing_user} please leave the arena!')
                 print(self.arena_rotation)
@@ -221,6 +239,7 @@ class Bot(commands.Bot):
             return
 
         losing_user = self.arena_rotation[0]
+        winning_user = self.arena_rotation[1]
 
         # Remove the losing user from the arena entrants
 
@@ -236,6 +255,7 @@ class Bot(commands.Bot):
                 user_to_invite = self.arena_queue.pop(0)
                 self.arena_rotation.remove(losing_user)
                 self.arena_rotation.append(user_to_invite)
+                self.add_to_scoreboard(user_to_invite)
                 await ctx.send(f'@{user_to_invite} please join the arena!')
                 await ctx.send(f'@{losing_user} please leave the arena!')
                 print(self.arena_rotation)
@@ -244,6 +264,7 @@ class Bot(commands.Bot):
                 print(self.arena_rotation)
 
         self.win_streak = 1
+        self.scoreboard[winning_user] += 1
 
     @commands.command()
     async def list(self, ctx: commands.Context):
@@ -255,8 +276,10 @@ class Bot(commands.Bot):
         await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
 
     @commands.command()
-    async def raffle(self, ctx: commands.Context):
-        await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
+    async def scoreboard(self, ctx: commands.Context):
+        scores = [f'{key}: {value}' for key, value in
+                  {k: v for k, v in sorted(self.scoreboard.items(), key=lambda item: item[1], reverse=True)}.items()]
+        await ctx.send(f'The score is the following: {", ".join(scores)}')
 
 
 bot = Bot()
