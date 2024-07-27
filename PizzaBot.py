@@ -262,10 +262,6 @@ class Bot(commands.Bot):
     async def raffle(self, ctx: commands.Context):
         await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
 
-    @commands.command()
-    async def raffle(self, ctx: commands.Context):
-        await ctx.send(f'The raffle list is the following: {", ".join(self.raffle_queue)}')
-
 
 bot = Bot()
 bot.run()
