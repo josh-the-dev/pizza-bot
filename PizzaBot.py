@@ -1,5 +1,8 @@
 import os
 import random
+import lib.winner_repository as winner_repository
+from datetime import datetime, time
+from collections import Counter
 from twitchio.ext import commands
 from dotenv import load_dotenv
 
@@ -319,6 +322,26 @@ class Bot(commands.Bot):
         scores = [f'{key}: {value}' for key, value in
                   {k: v for k, v in sorted(self.scoreboard.items(), key=lambda item: item[1], reverse=True)}.items()]
         await ctx.send(f'The score is the following: {", ".join(scores)}')
+
+    @commands.command()
+    async def winner(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+        if not is_privileged_user:
+            return
+        split_message = ctx.message.content.split()
+        winner = split_message[1]
+
+        winner_repository.save(dict(name=winner, date=datetime.combine(datetime.now(), time.min)))
+        await ctx.send(f'{winner} wins today\'s Pizza Stream!')
+
+    @commands.command()
+    async def winners(self, ctx: commands.Context):
+        winners = winner_repository.find_all()
+        winner_names = list(map(lambda x: x['name'], winners))
+        winner_by_wins = Counter(winner_names)
+        scores = [f'{key}: {value}x' for key, value in
+                  {k: v for k, v in sorted(winner_by_wins.items(), key=lambda item: item[1], reverse=True)}.items()]
+        await ctx.send(f'The pizza stream winners are the following: {", ".join(scores)}')
 
 
 bot = Bot()

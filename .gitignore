@@ -3,3 +3,6 @@ bot.ts
 
 # env files
 .env.*
+
+# database files
+/database/
