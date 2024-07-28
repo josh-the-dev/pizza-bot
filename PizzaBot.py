@@ -1,5 +1,8 @@
 import os
 import random
+import lib.winner_repository as winner_repository
+from datetime import datetime, time
+from collections import Counter
 from twitchio.ext import commands
 from dotenv import load_dotenv
 
@@ -60,6 +63,19 @@ class Bot(commands.Bot):
     def add_to_scoreboard(self, user):
         if user not in self.scoreboard:
             self.scoreboard[user] = 0
+
+    def is_first(self, winning_user):
+        highest_score = self.get_highest_score_without_winner(winning_user)
+        return highest_score <= self.scoreboard[winning_user]
+
+    def get_highest_score_without_winner(self, winning_user):
+        scoreboard_minus_winner = self.get_scoreboard_minus_winner(winning_user)
+        return max(scoreboard_minus_winner.values())
+
+    def get_scoreboard_minus_winner(self, winning_user):
+        scoreboard_minus_winner = dict(self.scoreboard)
+        scoreboard_minus_winner.pop(winning_user, None)
+        return scoreboard_minus_winner
 
     @commands.command()
     async def open(self, ctx: commands.Context):
@@ -179,19 +195,31 @@ class Bot(commands.Bot):
         if not is_privileged_user:
             return
 
+        await self.win_points(ctx, 1)
+
+    @commands.command()
+    async def win3stock(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+
+        if not is_privileged_user:
+            return
+
+        await self.win_points(ctx, 3)
+
+    async def win_points(self, ctx: commands.Context, points: int):
         winning_user = self.arena_rotation[0]
         losing_user = self.arena_rotation[1]
-
         self.win_streak += 1
-        self.scoreboard[winning_user] += 1
 
+        if self.is_first(winning_user):
+            points = 1
+
+        self.scoreboard[winning_user] += points
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
-
         # If there are any people in the arena queue, we need to move them to the arena rotation
         # And the loser moves to the arena queue and removed from the arena rotation
         # If the loser is the channel owner, they move to the back of the arena rotation
-
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(1))
             print(self.arena_rotation)
@@ -201,6 +229,7 @@ class Bot(commands.Bot):
                 user_to_invite = self.arena_queue.pop(0)
                 self.arena_rotation.remove(losing_user)
                 self.arena_rotation.append(user_to_invite)
+                self.arena_queue.append(losing_user)
                 self.add_to_scoreboard(user_to_invite)
                 await ctx.send(f'@{user_to_invite} please join the arena!')
                 await ctx.send(f'@{losing_user} please leave the arena!')
@@ -208,7 +237,6 @@ class Bot(commands.Bot):
             else:
                 self.arena_rotation.append(self.arena_rotation.pop(1))
                 print(self.arena_rotation)
-
         if self.win_streak == 3:
             is_winning_user_channel_owner = self.check_is_channel_owner_by_name(
                 winning_user)
@@ -222,6 +250,7 @@ class Bot(commands.Bot):
                     user_to_invite = self.arena_queue.pop(0)
                     self.arena_rotation.append(user_to_invite)
                     self.arena_rotation.remove(winning_user)
+                    self.arena_queue.append(winning_user)
                     await ctx.send(f'@{winning_user} has a win streak of 3! Please leave the arena!')
                     await ctx.send(f'@{user_to_invite} please join the arena!')
                     print(self.arena_rotation)
@@ -238,14 +267,27 @@ class Bot(commands.Bot):
         if not is_privileged_user:
             return
 
+        await self.lose_points(ctx, 1)
+
+    @commands.command()
+    async def lose3stock(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+
+        if not is_privileged_user:
+            return
+
+        await self.lose_points(ctx, 3)
+
+    async def lose_points(self, ctx, points: int):
         losing_user = self.arena_rotation[0]
         winning_user = self.arena_rotation[1]
 
-        # Remove the losing user from the arena entrants
+        if self.is_first(winning_user):
+            points = 1
 
+        # Remove the losing user from the arena entrants
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
-
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(0))
             await ctx.send(f'@{losing_user} go to the back of the queue!')
@@ -255,6 +297,7 @@ class Bot(commands.Bot):
                 user_to_invite = self.arena_queue.pop(0)
                 self.arena_rotation.remove(losing_user)
                 self.arena_rotation.append(user_to_invite)
+                self.arena_queue.append(losing_user)
                 self.add_to_scoreboard(user_to_invite)
                 await ctx.send(f'@{user_to_invite} please join the arena!')
                 await ctx.send(f'@{losing_user} please leave the arena!')
@@ -262,9 +305,8 @@ class Bot(commands.Bot):
             else:
                 self.arena_rotation.append(self.arena_rotation.pop(0))
                 print(self.arena_rotation)
-
         self.win_streak = 1
-        self.scoreboard[winning_user] += 1
+        self.scoreboard[winning_user] += points
 
     @commands.command()
     async def list(self, ctx: commands.Context):
@@ -280,6 +322,26 @@ class Bot(commands.Bot):
         scores = [f'{key}: {value}' for key, value in
                   {k: v for k, v in sorted(self.scoreboard.items(), key=lambda item: item[1], reverse=True)}.items()]
         await ctx.send(f'The score is the following: {", ".join(scores)}')
+
+    @commands.command()
+    async def winner(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+        if not is_privileged_user:
+            return
+        split_message = ctx.message.content.split()
+        winner = split_message[1]
+
+        winner_repository.save(dict(name=winner, date=datetime.combine(datetime.now(), time.min)))
+        await ctx.send(f'{winner} wins today\'s Pizza Stream!')
+
+    @commands.command()
+    async def winners(self, ctx: commands.Context):
+        winners = winner_repository.find_all()
+        winner_names = list(map(lambda x: x['name'], winners))
+        winner_by_wins = Counter(winner_names)
+        scores = [f'{key}: {value}x' for key, value in
+                  {k: v for k, v in sorted(winner_by_wins.items(), key=lambda item: item[1], reverse=True)}.items()]
+        await ctx.send(f'The pizza stream winners are the following: {", ".join(scores)}')
 
 
 bot = Bot()
