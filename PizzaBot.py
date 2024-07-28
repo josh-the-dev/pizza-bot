@@ -223,6 +223,7 @@ class Bot(commands.Bot):
                     user_to_invite = self.arena_queue.pop(0)
                     self.arena_rotation.append(user_to_invite)
                     self.arena_rotation.remove(winning_user)
+                    self.arena_queue.append(winning_user)
                     await ctx.send(f'@{winning_user} has a win streak of 3! Please leave the arena!')
                     await ctx.send(f'@{user_to_invite} please join the arena!')
                     print(self.arena_rotation)
