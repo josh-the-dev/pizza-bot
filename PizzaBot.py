@@ -61,6 +61,19 @@ class Bot(commands.Bot):
         if user not in self.scoreboard:
             self.scoreboard[user] = 0
 
+    def is_first(self, winning_user):
+        highest_score = self.get_highest_score_without_winner(winning_user)
+        return highest_score <= self.scoreboard[winning_user]
+
+    def get_highest_score_without_winner(self, winning_user):
+        scoreboard_minus_winner = self.get_scoreboard_minus_winner(winning_user)
+        return max(scoreboard_minus_winner.values())
+
+    def get_scoreboard_minus_winner(self, winning_user):
+        scoreboard_minus_winner = dict(self.scoreboard)
+        scoreboard_minus_winner.pop(winning_user, None)
+        return scoreboard_minus_winner
+
     @commands.command()
     async def open(self, ctx: commands.Context):
         is_privileged_user = self.check_user_privilege(ctx.message)
@@ -179,19 +192,31 @@ class Bot(commands.Bot):
         if not is_privileged_user:
             return
 
+        await self.win_points(ctx, 1)
+
+    @commands.command()
+    async def win3stock(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+
+        if not is_privileged_user:
+            return
+
+        await self.win_points(ctx, 3)
+
+    async def win_points(self, ctx: commands.Context, points: int):
         winning_user = self.arena_rotation[0]
         losing_user = self.arena_rotation[1]
-
         self.win_streak += 1
-        self.scoreboard[winning_user] += 1
 
+        if self.is_first(winning_user):
+            points = 1
+
+        self.scoreboard[winning_user] += points
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
-
         # If there are any people in the arena queue, we need to move them to the arena rotation
         # And the loser moves to the arena queue and removed from the arena rotation
         # If the loser is the channel owner, they move to the back of the arena rotation
-
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(1))
             print(self.arena_rotation)
@@ -209,7 +234,6 @@ class Bot(commands.Bot):
             else:
                 self.arena_rotation.append(self.arena_rotation.pop(1))
                 print(self.arena_rotation)
-
         if self.win_streak == 3:
             is_winning_user_channel_owner = self.check_is_channel_owner_by_name(
                 winning_user)
@@ -240,14 +264,27 @@ class Bot(commands.Bot):
         if not is_privileged_user:
             return
 
+        await self.lose_points(ctx, 1)
+
+    @commands.command()
+    async def lose3stock(self, ctx: commands.Context):
+        is_privileged_user = self.check_user_privilege(ctx.message)
+
+        if not is_privileged_user:
+            return
+
+        await self.lose_points(ctx, 3)
+
+    async def lose_points(self, ctx, points: int):
         losing_user = self.arena_rotation[0]
         winning_user = self.arena_rotation[1]
 
-        # Remove the losing user from the arena entrants
+        if self.is_first(winning_user):
+            points = 1
 
+        # Remove the losing user from the arena entrants
         is_losing_user_channel_owner = self.check_is_channel_owner_by_name(
             losing_user)
-
         if is_losing_user_channel_owner:
             self.arena_rotation.append(self.arena_rotation.pop(0))
             await ctx.send(f'@{losing_user} go to the back of the queue!')
@@ -265,9 +302,8 @@ class Bot(commands.Bot):
             else:
                 self.arena_rotation.append(self.arena_rotation.pop(0))
                 print(self.arena_rotation)
-
         self.win_streak = 1
-        self.scoreboard[winning_user] += 1
+        self.scoreboard[winning_user] += points
 
     @commands.command()
     async def list(self, ctx: commands.Context):
